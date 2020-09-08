@@ -1,43 +1,42 @@
 import React from "react";
 import { Formik, Form } from "formik";
-import { Box, Button } from "@chakra-ui/core";
+import {
+  FormControl,
+  FormLabel,
+  Input,
+  FormErrorMessage,
+  Box,
+  Button,
+} from "@chakra-ui/core";
 import { Wrapper } from "../components/Wrapper";
 import { InputField } from "../components/InputField";
-import { useRegisterMutation, MeQuery, MeDocument } from "../generated/graphql";
-import { toErrorMap } from "../utils/toErrorMap";
-import { useRouter } from "next/router";
-import { withUrqlClient } from "next-urql";
-import { createUrqlClient } from "../utils/createUrqlClient";
-import { withApollo } from "../utils/withApollo";
+import { useMutation } from "urql";
 
 interface registerProps {}
 
+const REGISTER_MUT = `
+mutation Register($username: String!, $password:String!) {
+  register(options: { username: $username, password: $password }) {
+    errors {
+      field
+      message
+    }
+    user {
+      id
+      username
+    }
+  }
+}
+`;
+
 const Register: React.FC<registerProps> = ({}) => {
-  const router = useRouter();
-  const [register] = useRegisterMutation();
+  const [, register] = useMutation(REGISTER_MUT);
   return (
     <Wrapper variant="small">
       <Formik
-        initialValues={{ email: "", username: "", password: "" }}
-        onSubmit={async (values, { setErrors }) => {
-          const response = await register({
-            variables: { options: values },
-            update: (cache, { data }) => {
-              cache.writeQuery<MeQuery>({
-                query: MeDocument,
-                data: {
-                  __typename: "Query",
-                  me: data?.register.user,
-                },
-              });
-            },
-          });
-          if (response.data?.register.errors) {
-            setErrors(toErrorMap(response.data.register.errors));
-          } else if (response.data?.register.user) {
-            // worked
-            router.push("/");
-          }
+        initialValues={{ username: "", password: "" }}
+        onSubmit={async (values) => {
+          const response = await register(values);
         }}
       >
         {({ isSubmitting }) => (
@@ -47,9 +46,6 @@ const Register: React.FC<registerProps> = ({}) => {
               placeholder="username"
               label="Username"
             />
-            <Box mt={4}>
-              <InputField name="email" placeholder="email" label="Email" />
-            </Box>
             <Box mt={4}>
               <InputField
                 name="password"
@@ -73,4 +69,4 @@ const Register: React.FC<registerProps> = ({}) => {
   );
 };
 
-export default withApollo({ ssr: false })(Register);
+export default Register;
